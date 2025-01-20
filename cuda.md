@@ -70,11 +70,7 @@ Nvidia's brainchild and flagship technology
 
 ---
 
-![bg center contain](./CPU.png)
-
----
-
-![bg center contain](./GPU.png)
+![bg fit](./cpu_gpu.png)
 
 ---
 
@@ -113,6 +109,52 @@ Nvidia's brainchild and flagship technology
 - Device (GPU): Executes parallel computations.
 - Kernels: Functions executed on the GPU in parallel.
 - Threads & Blocks: CUDA organizes parallel execution in a grid of blocks, and each block contains multiple threads.
+
+---
+
+![bg fit](./block_thread_grid.svg)
+
+---
+
+# CUDA Execution Model
+
+CUDA organizes parallel execution into three levels:
+
+## 1.1 Thread
+
+- The smallest execution unit in CUDA.
+- Each thread performs a computation on a specific data index.
+- Example: Each thread computes one element of an array (c[idx] = a[idx] + b[idx]).
+
+---
+
+## 1.2 Block
+
+- A block is a collection of multiple threads.
+- Threads in a block can share shared memory and synchronize using \_\_syncthreads().
+- Each block has a unique ID (blockIdx.x, blockIdx.y, blockIdx.z).
+- Threads inside a block have a thread ID (threadIdx.x, threadIdx.y, threadIdx.z).
+- Blocks are executed independently by Streaming Multiprocessors (SMs) on the GPU.
+
+---
+
+## 1.3 Grid
+
+- A grid is a collection of multiple blocks.
+- Blocks are independent and do not share memory (unless using global memory).
+- Each block processes a portion of the dataset.
+
+---
+
+## Summary of CUDA Hierarchy
+
+- Level Description Example (N=1024)
+- Grid Collection of blocks 4 blocks
+- Block Collection of threads 256 threads per block
+  Thread Executes kernel code 1024 threads total
+  🔹 Efficient execution → Each thread handles 1 computation.
+  🔹 Blocks run independently → Ideal for large-scale computations.
+  🔹 Scalable design → Works for any data size N.
 
 ---
 
