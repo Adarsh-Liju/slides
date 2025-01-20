@@ -217,146 +217,132 @@ int main() {
 
 ---
 
-# Explanation
+## **Step 1: CUDA Program Overview**
 
-- The add kernel function adds elements from two arrays (a and b) and stores the result in array c.
-- We allocate memory for the arrays both on the host (CPU) and the device (GPU).
-- The kernel is launched with one block of 256 threads to handle the addition.
-- After execution, the result is copied back to the host for printing.
+### **Objective:**
+
+- Perform **parallel addition** of two arrays using CUDA.
+- Utilize **GPU acceleration** for faster computation.
+
+### **Key Components:**
+
+✅ **Host (CPU) Operations** – Memory allocation, data transfer.  
+✅ **Device (GPU) Execution** – Parallel computation with CUDA kernels.  
+✅ **Data Transfer & Cleanup** – Copy results back to CPU and free memory.
 
 ---
 
-1. **CPU Version (Without CUDA)**: Uses standard C++ with `<chrono>` and `<sys/resource.h>` to measure execution time and resource usage.
-2. **CUDA Version (With CUDA Acceleration)**: Uses NVIDIA CUDA to parallelize the addition operation and measures GPU execution time.
+## **Step 2: Host (CPU) Operations**
 
-Both programs perform the same operation: adding two large arrays element-wise.
+### **1. Memory Allocation & Initialization**
+
+✔ Allocate memory for arrays `a`, `b`, and `c`.  
+✔ Initialize arrays:
+
+- `a[i] = i`
+- `b[i] = i * 2`
+
+### **2. Device Memory Allocation**
+
+✔ Allocate GPU memory (`d_a`, `d_b`, `d_c`).
+
+### **3. Copy Data to Device**
+
+✔ Use `cudaMemcpy()` to transfer `a` and `b` from **CPU → GPU**.
 
 ---
 
-## **1. CPU Version (Without CUDA)**
+## **Step 3: CUDA Kernel Execution (GPU)**
+
+### **1. Kernel Launch**
+
+🚀 **Launch configuration:**
 
 ```cpp
-#include <iostream>
-#include <vector>
-#include <chrono>
-#include <sys/resource.h>
+add<<<(N + 255) / 256, 256>>>(d_a, d_b, d_c);
+```
 
-const int N = 1000000; // Size of the arrays
+✔ `(N + 255) / 256` → Computes required **blocks**.  
+✔ `256` → Number of **threads per block**.
 
-// Function to add two arrays on CPU
-void add_cpu(const std::vector<int>& a, const std::vector<int>& b, std::vector<int>& c) {
-    for (int i = 0; i < N; i++) {
-        c[i] = a[i] + b[i];
-    }
-}
+---
 
-// Function to print resource usage
-void print_resource_usage() {
-    struct rusage usage;
-    if (getrusage(RUSAGE_SELF, &usage) == 0) {
-        std::cout << "User CPU time used: " << usage.ru_utime.tv_sec + usage.ru_utime.tv_usec / 1e6 << " seconds\n";
-        std::cout << "System CPU time used: " << usage.ru_stime.tv_sec + usage.ru_stime.tv_usec / 1e6 << " seconds\n";
-        std::cout << "Maximum resident set size: " << usage.ru_maxrss << " KB\n";
-    } else {
-        std::cerr << "Failed to get resource usage.\n";
-    }
-}
+### **2. Parallel Computation**
 
-int main() {
-    std::vector<int> a(N), b(N), c(N);
+✔ **Each thread** executes:
 
-    // Initialize arrays
-    for (int i = 0; i < N; i++) {
-        a[i] = i;
-        b[i] = i * 2;
-    }
+```cpp
+c[idx] = a[idx] + b[idx];
+```
 
-    // Measure time
-    auto start = std::chrono::high_resolution_clock::now();
-    add_cpu(a, b, c);
-    auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> duration = end - start;
+✔ Index calculation:
 
-    // Print results
-    std::cout << "CPU Time taken for addition: " << duration.count() << " seconds\n";
-    print_resource_usage();
+```cpp
+int idx = threadIdx.x + blockIdx.x * blockDim.x;
+```
 
-    return 0;
-}
+✔ Threads operate **independently** for speedup.
+
+---
+
+## **Step 4: CUDA Grid & Block Structure**
+
+### **Grid & Block Breakdown:**
+
+- **Grid Size**: `(N + 255) / 256` blocks
+- **Block Size**: `256` threads
+
+| **Block** | **Threads**    |
+| --------- | -------------- |
+| Block 0   | `[0 - 255]`    |
+| Block 1   | `[256 - 511]`  |
+| Block 2   | `[512 - 767]`  |
+| Block 3   | `[768 - 1023]` |
+
+✔ **Scalable Design** – Works for large `N`.
+
+---
+
+## **Step 5: Copy Back & Cleanup**
+
+### **1. Transfer Results to Host (CPU ← GPU)**
+
+✔ `cudaMemcpy()` moves `c` from **GPU → CPU**.
+
+### **2. Display Results**
+
+✔ Print the first **10 values of `c`**.
+
+### **3. Free Memory**
+
+✔ Deallocate memory:
+
+```cpp
+cudaFree(d_a); cudaFree(d_b); cudaFree(d_c);
+free(a); free(b); free(c);
 ```
 
 ---
 
-## **2. CUDA Version (With CUDA Acceleration)**
+## **Step 6: Why is CUDA Efficient?**
 
-```cpp
-#include <iostream>
-#include <cuda_runtime.h>
-#include <chrono>
+### **Performance Benefits:**
 
-const int N = 1000000; // Size of the arrays
+✅ **Massive Parallelism** – Thousands of threads run **simultaneously**.  
+✅ **Optimized Memory Transfers** – Reduces CPU-GPU communication overhead.  
+✅ **Scalability** – Can handle large datasets efficiently.  
+✅ **Minimal Code Changes** – Works across different GPU architectures.
 
-// CUDA Kernel to add two arrays
-__global__ void add_cuda(const int* a, const int* b, int* c, int size) {
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i < size) {
-        c[i] = a[i] + b[i];
-    }
-}
+---
 
-int main() {
-    int *h_a, *h_b, *h_c; // Host arrays
-    int *d_a, *d_b, *d_c; // Device arrays
+### **Summary & Takeaways**
 
-    size_t bytes = N * sizeof(int);
+📌 **CUDA enables parallel computing with GPU acceleration.**  
+📌 **Each thread independently computes a portion of the data.**  
+📌 **CUDA’s grid & block model optimizes performance.**  
+📌 **Efficient memory management ensures speedup.**
 
-    // Allocate memory on host
-    h_a = (int*)malloc(bytes);
-    h_b = (int*)malloc(bytes);
-    h_c = (int*)malloc(bytes);
-
-    // Initialize arrays
-    for (int i = 0; i < N; i++) {
-        h_a[i] = i;
-        h_b[i] = i * 2;
-    }
-
-    // Allocate memory on GPU
-    cudaMalloc((void**)&d_a, bytes);
-    cudaMalloc((void**)&d_b, bytes);
-    cudaMalloc((void**)&d_c, bytes);
-
-    // Copy data from host to device
-    cudaMemcpy(d_a, h_a, bytes, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_b, h_b, bytes, cudaMemcpyHostToDevice);
-
-    // Launch kernel
-    int blockSize = 256;
-    int gridSize = (N + blockSize - 1) / blockSize;
-
-    auto start = std::chrono::high_resolution_clock::now();
-    add_cuda<<<gridSize, blockSize>>>(d_a, d_b, d_c, N);
-    cudaDeviceSynchronize();
-    auto end = std::chrono::high_resolution_clock::now();
-
-    // Copy result back to host
-    cudaMemcpy(h_c, d_c, bytes, cudaMemcpyDeviceToHost);
-
-    // Compute duration
-    std::chrono::duration<double> duration = end - start;
-    std::cout << "CUDA Time taken for addition: " << duration.count() << " seconds\n";
-
-    // Free memory
-    cudaFree(d_a);
-    cudaFree(d_b);
-    cudaFree(d_c);
-    free(h_a);
-    free(h_b);
-    free(h_c);
-
-    return 0;
-}
-```
+🔥 **Key Learning:** GPUs can dramatically **speed up computations** by executing thousands of threads in parallel! 🚀
 
 ---
 
